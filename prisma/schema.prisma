@@ -1,0 +1,158 @@
+// Prisma Schema for toxtoe - TouchDesigner Digital Broker Marketplace
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --------------------------------------
+// Enums
+// --------------------------------------
+
+enum Role {
+  USER
+  SELLER
+  ADMIN
+}
+
+enum FileType {
+  TOX   // TouchDesigner Component file (.tox)
+  TOE   // TouchDesigner Project file (.toe)
+  BOTH  // Bundle containing both .tox and .toe files
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// --------------------------------------
+// User & Auth Models (Auth.js / NextAuth)
+// --------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  role          Role      @default(USER)
+
+  // Auth.js relations
+  accounts      Account[]
+  sessions      Session[]
+
+  // Marketplace relations
+  products      Product[]  @relation("SellerProducts")
+  purchases     Purchase[] @relation("BuyerPurchases")
+
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// --------------------------------------
+// Marketplace Models
+// --------------------------------------
+
+model Product {
+  id            String    @id @default(cuid())
+  title         String
+  slug          String    @unique
+  description   String?   @db.Text
+  price         Int       // Stored in smallest currency unit (cents, e.g., $15.00 = 1500)
+  thumbnail_url String    @map("thumbnail_url") // Public image URL for catalog & preview
+  
+  /// [CRITICAL - DIGITAL BROKER MODEL]
+  /// Shareable delivery link on external drives (MediaFire, Google Drive, MEGA, Dropbox).
+  /// SECURITY: MUST NEVER be included in public queries or sent to client without backend purchase verification!
+  delivery_url  String    @map("delivery_url")
+
+  fileType      FileType  @default(TOX) @map("file_type")
+  isPublished   Boolean   @default(true) @map("is_published")
+
+  // Seller relationship
+  sellerId      String    @map("seller_id")
+  seller        User      @relation("SellerProducts", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  // Purchases relationship
+  purchases     Purchase[]
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([sellerId])
+  @@map("products")
+}
+
+model Purchase {
+  id                         String         @id @default(cuid())
+  userId                     String         @map("user_id")
+  productId                  String         @map("product_id")
+  stripePaymentIntentId      String?        @unique @map("stripe_payment_intent_id")
+  stripeCheckoutSessionId    String?        @unique @map("stripe_checkout_session_id")
+  amountPaid                 Int            @map("amount_paid") // In cents (e.g. 1500 for $15.00)
+  currency                   String         @default("usd")
+  status                     PurchaseStatus @default(PENDING)
+
+  // Relationships
+  user                       User           @relation("BuyerPurchases", fields: [userId], references: [id], onDelete: Cascade)
+  product                    Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  createdAt                  DateTime       @default(now()) @map("created_at")
+  updatedAt                  DateTime       @updatedAt @map("updated_at")
+
+  // Ensure a buyer only has one recorded purchase per product and fast lookup for verification
+  @@unique([userId, productId], name: "user_product_purchase")
+  @@index([userId])
+  @@index([productId])
+  @@map("purchases")
+}
