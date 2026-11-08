@@ -6,6 +6,7 @@ import Image from "next/image";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/components/ProductCard";
+import SellerProductActions from "@/components/SellerProductActions";
 
 const FILE_TYPE_LABEL: Record<string, string> = {
   TOX: ".tox",
@@ -133,27 +134,11 @@ async function SellerContent() {
                 </p>
               </div>
 
-              <a
-                href={product.delivery_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/[0.12] bg-[#1a1e28] px-4 text-[13px] font-medium text-[#a3a9b8] transition-colors hover:border-white/[0.24] hover:text-[#eef0f5]"
-              >
-                Open share link
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M14 5l7 7-7 7M3 12h18"
-                  />
-                </svg>
-              </a>
+              <SellerProductActions
+                productId={product.id}
+                isPublished={product.isPublished}
+                deliveryUrl={product.delivery_url}
+              />
             </li>
           ))}
         </ul>

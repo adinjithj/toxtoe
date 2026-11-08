@@ -15,7 +15,26 @@ const INPUT_CLASSES =
 const TEXTAREA_CLASSES =
   "rounded-lg border border-white/[0.12] bg-[#0f1219] px-4 py-3 text-sm text-[#eef0f5] placeholder:text-[#7a8296] focus:border-white/[0.24] focus:outline-none";
 
-export default function SellerProductForm() {
+export interface SellerProductInitialData {
+  title: string;
+  description: string;
+  priceCents: number;
+  fileType: string;
+  thumbnailUrl: string;
+  deliveryUrl: string;
+}
+
+type SellerProductFormProps = {
+  mode?: "create" | "edit";
+  productId?: string;
+  initial?: SellerProductInitialData;
+};
+
+export default function SellerProductForm({
+  mode = "create",
+  productId,
+  initial,
+}: SellerProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +54,13 @@ export default function SellerProductForm() {
       deliveryUrl: String(formData.get("deliveryUrl") ?? ""),
     };
 
+    const isEdit = mode === "edit" && productId;
+    const endpoint = isEdit ? `/api/seller/products/${productId}` : "/api/seller/products";
+    const method = isEdit ? "PUT" : "POST";
+
     try {
-      const res = await fetch("/api/seller/products", {
-        method: "POST",
+      const res = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -49,17 +72,21 @@ export default function SellerProductForm() {
 
       if (!res.ok) {
         if (res.status === 401) {
-          router.push("/login?callbackUrl=/seller/new");
+          router.push(`/login?callbackUrl=${isEdit ? `/seller/edit/${productId}` : "/seller/new"}`);
           return;
         }
-        throw new Error(data.error ?? "Could not create asset");
+        throw new Error(data.error ?? `Could not ${isEdit ? "update" : "create"} asset`);
       }
 
-      // Created — land on the seller dashboard so the new row is visible.
+      // Land on the seller dashboard so the updated list is visible.
       router.push("/seller");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create asset");
+      setError(
+        err instanceof Error
+          ? err.message
+          : `Could not ${isEdit ? "update" : "create"} asset`
+      );
       setLoading(false);
     }
   }
@@ -77,6 +104,7 @@ export default function SellerProductForm() {
           type="text"
           required
           maxLength={120}
+          defaultValue={initial?.title}
           placeholder="e.g. Neon Glitch Shader"
           className={INPUT_CLASSES}
         />
@@ -92,6 +120,7 @@ export default function SellerProductForm() {
           name="description"
           rows={4}
           maxLength={2000}
+          defaultValue={initial?.description}
           placeholder="What does this asset do? What is included?"
           className={TEXTAREA_CLASSES}
         />
@@ -114,7 +143,9 @@ export default function SellerProductForm() {
             min="0"
             step="0.01"
             required
-            defaultValue="15.00"
+            defaultValue={
+              initial ? (initial.priceCents / 100).toFixed(2) : "15.00"
+            }
             className={`${INPUT_CLASSES} w-full pl-8`}
           />
         </div>
@@ -130,7 +161,9 @@ export default function SellerProductForm() {
                 type="radio"
                 name="fileType"
                 value={fileType.value}
-                defaultChecked={fileType.value === "TOX"}
+                defaultChecked={
+                  fileType.value === (initial?.fileType ?? "TOX")
+                }
                 className="peer sr-only"
               />
               <span className="block rounded-lg border border-white/[0.12] bg-[#0f1219] px-4 py-3 text-sm text-[#a3a9b8] transition-colors peer-checked:border-emerald-400/40 peer-checked:text-[#eef0f5] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#10b981]">
@@ -151,6 +184,7 @@ export default function SellerProductForm() {
           name="thumbnailUrl"
           type="url"
           required
+          defaultValue={initial?.thumbnailUrl}
           placeholder="https://… (public image link)"
           className={INPUT_CLASSES}
         />
@@ -166,6 +200,7 @@ export default function SellerProductForm() {
           name="deliveryUrl"
           type="url"
           required
+          defaultValue={initial?.deliveryUrl}
           placeholder="https://drive.google.com/…"
           className={INPUT_CLASSES}
         />
@@ -184,7 +219,13 @@ export default function SellerProductForm() {
           disabled={loading}
           className="inline-flex h-11 items-center justify-center rounded-lg bg-[#eef0f5] px-6 text-sm font-medium text-[#0b0d14] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Creating asset…" : "Create asset"}
+          {loading
+            ? mode === "edit"
+              ? "Saving…"
+              : "Creating asset…"
+            : mode === "edit"
+              ? "Save changes"
+              : "Create asset"}
         </button>
         <Link
           href="/seller"
