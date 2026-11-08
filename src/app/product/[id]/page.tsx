@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import Image from "next/image";
 import Link from "next/link";
-import ClaimAssetButton from "@/components/ClaimAssetButton";
+import BuyButton from "@/components/BuyButton";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/components/ProductCard";
@@ -123,7 +123,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
                 Already Owned - Go to Dashboard
               </Link>
             ) : (
-              <ClaimAssetButton productId={product.id} />
+              <BuyButton productId={product.id} />
             )}
           </div>
 
@@ -134,8 +134,8 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             </p>
           ) : (
             <p className="mt-4 font-mono text-[11px] leading-relaxed text-[#7a8296]">
-              Test mode: claiming records a completed purchase immediately. Your
-              delivery link appears on your dashboard.
+              Checkout is powered by Stripe. After payment, your delivery link
+              appears on your dashboard.
             </p>
           )}
         </div>

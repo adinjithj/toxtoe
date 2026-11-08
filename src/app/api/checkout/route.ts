@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getStripe } from "@/lib/stripe";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function POST(request: Request) {
   // 1. Require an authenticated session
@@ -26,17 +29,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // 3. Verify the product exists (safe select — no delivery_url needed here)
+  // 3. Load the published product (safe select — no delivery_url here)
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    select: { id: true, isPublished: true, price: true },
+    select: { id: true, title: true, price: true, isPublished: true },
   });
 
   if (!product || !product.isPublished) {
     return NextResponse.json({ error: "Product not found." }, { status: 404 });
   }
 
-  // 4. Strict safeguard: reject re-claiming an asset the user already owns.
+  // 4. Reject if the buyer already owns this asset
   const existingPurchase = await prisma.purchase.findUnique({
     where: {
       user_product_purchase: {
@@ -54,30 +57,36 @@ export async function POST(request: Request) {
     );
   }
 
-  // 5. Create (or confirm) a COMPLETED purchase for this user + product.
-  //    The unique (user_id, product_id) constraint makes this idempotent.
-  const purchase = await prisma.purchase.upsert({
-    where: {
-      user_product_purchase: {
-        userId,
-        productId,
+  // 5. Create a Stripe Checkout Session. The productId + userId travel in the
+  //    session metadata so the webhook can record the completed purchase.
+  const stripe = getStripe();
+  const checkout = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          unit_amount: product.price, // integer cents
+          product_data: { name: product.title },
+        },
       },
-    },
-    update: {
-      status: "COMPLETED",
-    },
-    create: {
+    ],
+    metadata: {
+      productId: product.id,
       userId,
-      productId,
-      amountPaid: product.price,
-      currency: "usd",
-      status: "COMPLETED",
     },
-    select: {
-      id: true,
-      status: true,
-    },
+    customer_email: session.user.email ?? undefined,
+    success_url: `${APP_URL}/dashboard?success=true`,
+    cancel_url: `${APP_URL}/product/${product.id}`,
   });
 
-  return NextResponse.json({ ok: true, purchase });
+  if (!checkout.url) {
+    return NextResponse.json(
+      { error: "Could not start checkout." },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ url: checkout.url });
 }
