@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/components/ProductCard";
 import SellerProductActions from "@/components/SellerProductActions";
+import SellerNav from "@/components/SellerNav";
 
 const FILE_TYPE_LABEL: Record<string, string> = {
   TOX: ".tox",
@@ -76,6 +77,8 @@ async function SellerContent() {
           Create New Asset
         </Link>
       </div>
+
+      <SellerNav active="products" />
 
       {products.length === 0 ? (
         <div className="mt-12 flex flex-col items-start gap-4 rounded-2xl border border-white/[0.08] bg-[#11141c] p-8">
