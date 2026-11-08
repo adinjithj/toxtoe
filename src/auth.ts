@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 // In production this is replaced by a real OAuth/identity provider.
 const TEST_PASSWORD = process.env.TEST_USER_PASSWORD ?? "toxtoe-test";
 
+// PRODUCTION: Vercel proxies requests, so NextAuth must trust the Host header.
+// Set `AUTH_TRUST_HOST=true` (or an explicit `NEXTAUTH_URL`) in the Vercel
+// dashboard or callback URLs will resolve to the wrong host behind the proxy.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },

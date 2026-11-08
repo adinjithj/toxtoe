@@ -4,7 +4,6 @@ import Link from "next/link";
 export interface ProductCardProps {
   id?: string;
   title: string;
-  price: number; // Integer in cents (e.g., 1800 -> $18.00)
   thumbnail_url?: string;
   thumbnailUrl?: string; // Support camelCase alias
   fileType?: "TOX" | "TOE" | "BOTH" | string;
@@ -33,7 +32,6 @@ export function formatPrice(cents: number): string {
 export default function ProductCard({
   id,
   title,
-  price,
   thumbnail_url,
   thumbnailUrl,
   fileType = "TOX",
@@ -125,13 +123,21 @@ export default function ProductCard({
         )}
 
         <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4">
-          <div>
-            <span className="block font-mono text-[11px] text-[#7a8296]">
-              Price
-            </span>
-            <span className="mt-0.5 block text-lg font-medium tabular-nums text-[#eef0f5]">
-              {formatPrice(price)}
-            </span>
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-[#10b981]"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.75}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-lg font-medium text-[#eef0f5]">Free</span>
           </div>
 
           {href ? (

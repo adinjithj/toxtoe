@@ -164,7 +164,6 @@ async function FeaturedProducts() {
     select: {
       id: true,
       title: true,
-      price: true,
       thumbnail_url: true,
       fileType: true,
     },
@@ -177,7 +176,6 @@ async function FeaturedProducts() {
           key={product.id}
           id={product.id}
           title={product.title}
-          price={product.price}
           thumbnail_url={product.thumbnail_url}
           fileType={product.fileType}
           isOwned={ownedProductIds.has(product.id)}
@@ -259,7 +257,7 @@ export default function HomePage() {
               For the TouchDesigner community
             </p>
             <h1 className="mt-4 max-w-xl text-4xl font-medium leading-[1.05] tracking-tight text-[#eef0f5] sm:text-[56px]">
-              Buy and sell TouchDesigner assets
+              Claim and share TouchDesigner assets
             </h1>
             <p className="mt-6 max-w-md text-base leading-relaxed text-[#a3a9b8]">
               Curated .tox components and .toe project networks, crafted by
@@ -337,7 +335,7 @@ export default function HomePage() {
             toxtoe © 2026 · Digital broker for TouchDesigner creators
           </p>
           <p className="font-mono text-xs text-[#7a8296]">
-            Next.js · Neon Postgres · Stripe
+            Next.js · Neon Postgres · Free exchange
           </p>
         </div>
       </footer>

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getStripe } from "@/lib/stripe";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
+// Direct, free claim flow (replaces the Stripe checkout).
+// The marketplace is currently a 100% free exchange: claiming an asset
+// immediately records a COMPLETED purchase with amountPaid = 0.
 export async function POST(request: Request) {
   // 1. Require an authenticated session
   const session = await auth();
@@ -29,17 +29,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // 3. Load the published product (safe select — no delivery_url here)
+  // 3. Verify the product exists and is published
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    select: { id: true, title: true, price: true, isPublished: true },
+    select: { id: true, isPublished: true },
   });
 
   if (!product || !product.isPublished) {
     return NextResponse.json({ error: "Product not found." }, { status: 404 });
   }
 
-  // 4. Reject if the buyer already owns this asset
+  // 4. Reject repeat claims — the user already owns this asset
   const existingPurchase = await prisma.purchase.findUnique({
     where: {
       user_product_purchase: {
@@ -57,36 +57,20 @@ export async function POST(request: Request) {
     );
   }
 
-  // 5. Create a Stripe Checkout Session. The productId + userId travel in the
-  //    session metadata so the webhook can record the completed purchase.
-  const stripe = getStripe();
-  const checkout = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: product.price, // integer cents
-          product_data: { name: product.title },
-        },
-      },
-    ],
-    metadata: {
-      productId: product.id,
+  // 5. Record the free claim as a COMPLETED purchase
+  const purchase = await prisma.purchase.create({
+    data: {
       userId,
+      productId,
+      amountPaid: 0,
+      currency: "usd",
+      status: "COMPLETED",
     },
-    customer_email: session.user.email ?? undefined,
-    success_url: `${APP_URL}/dashboard?success=true`,
-    cancel_url: `${APP_URL}/product/${product.id}`,
+    select: {
+      id: true,
+      status: true,
+    },
   });
 
-  if (!checkout.url) {
-    return NextResponse.json(
-      { error: "Could not start checkout." },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({ url: checkout.url });
+  return NextResponse.json({ ok: true, purchase });
 }

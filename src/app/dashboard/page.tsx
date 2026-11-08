@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/components/ProductCard";
 
 // SECURITY: This is the ONLY frontend surface that may expose `delivery_url`.
 // It is gated behind an authenticated session and only returns the current
@@ -115,7 +114,7 @@ async function DashboardContent() {
                   {purchase.product.title}
                 </h2>
                 <p className="font-mono text-xs text-[#a3a9b8]">
-                  Paid {formatPrice(purchase.amountPaid)}
+                  Free claim
                 </p>
               </div>
 

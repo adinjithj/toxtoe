@@ -3,23 +3,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function BuyButton({ productId }: { productId: string }) {
+export default function ClaimButton({ productId }: { productId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleBuy() {
+  async function handleClaim() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId }),
       });
 
       const data = (await res.json()) as {
-        url?: string;
+        ok?: boolean;
         error?: string;
       };
 
@@ -28,17 +28,14 @@ export default function BuyButton({ productId }: { productId: string }) {
           router.push(`/login?callbackUrl=/product/${productId}`);
           return;
         }
-        throw new Error(data.error ?? "Could not start checkout");
+        throw new Error(data.error ?? "Could not claim asset");
       }
 
-      if (!data.url) {
-        throw new Error("Could not start checkout");
-      }
-
-      // Send the buyer to Stripe's hosted checkout page.
-      window.location.href = data.url;
+      // Free claim recorded — straight to the dashboard to see the delivery link.
+      router.push("/dashboard");
+      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start checkout");
+      setError(err instanceof Error ? err.message : "Could not claim asset");
       setLoading(false);
     }
   }
@@ -47,11 +44,11 @@ export default function BuyButton({ productId }: { productId: string }) {
     <div className="flex flex-col items-start gap-3">
       <button
         type="button"
-        onClick={handleBuy}
+        onClick={handleClaim}
         disabled={loading}
         className="inline-flex h-12 items-center gap-2 rounded-lg bg-[#eef0f5] px-7 text-sm font-medium text-[#0b0d14] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#10b981]"
       >
-        {loading ? "Redirecting to checkout…" : "Buy Now"}
+        {loading ? "Claiming asset…" : "Claim Free"}
       </button>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

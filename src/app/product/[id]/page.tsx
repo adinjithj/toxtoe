@@ -3,10 +3,9 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import Image from "next/image";
 import Link from "next/link";
-import BuyButton from "@/components/BuyButton";
+import ClaimButton from "@/components/ClaimButton";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/components/ProductCard";
 
 // SECURITY: explicit `select` whitelist — `delivery_url` is NEVER queried here.
 // Delivery links are only released after purchase verification (Phase 4 gateway).
@@ -89,10 +88,23 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           <div className="mt-8 flex items-center justify-between border-t border-white/[0.08] pt-6">
             <div>
               <span className="block font-mono text-[11px] text-[#7a8296]">
-                Price
+                Access
               </span>
-              <span className="mt-1 block text-2xl font-medium tabular-nums text-[#eef0f5]">
-                {formatPrice(product.price)}
+              <span className="mt-1 flex items-center gap-2 text-2xl font-medium text-[#eef0f5]">
+                <svg
+                  className="h-5 w-5 text-[#10b981]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Free
               </span>
             </div>
             <span className="flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#07080d]/70 px-2.5 py-1.5 font-mono text-xs text-[#a3a9b8]">
@@ -123,7 +135,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
                 Already Owned - Go to Dashboard
               </Link>
             ) : (
-              <BuyButton productId={product.id} />
+              <ClaimButton productId={product.id} />
             )}
           </div>
 
@@ -134,8 +146,8 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             </p>
           ) : (
             <p className="mt-4 font-mono text-[11px] leading-relaxed text-[#7a8296]">
-              Checkout is powered by Stripe. After payment, your delivery link
-              appears on your dashboard.
+              This asset is free to claim. Your delivery link will appear on
+              your dashboard instantly.
             </p>
           )}
         </div>

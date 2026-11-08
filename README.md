@@ -5,9 +5,8 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 [![Neon Postgres](https://img.shields.io/badge/Neon-Serverless_Postgres-00E599?style=for-the-badge&logo=postgresql)](https://neon.tech/)
 [![Prisma](https://img.shields.io/badge/Prisma-v7-2D3748?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
-[![Stripe](https://img.shields.io/badge/Stripe-Payments-635BFF?style=for-the-badge&logo=stripe)](https://stripe.com/)
 
-> **toxtoe** is a curated digital marketplace and broker platform purpose-built for the **TouchDesigner** creative coding, new media, and VJ community to buy and sell premium `.tox` (component) and `.toe` (project network) files.
+> **toxtoe** is a curated digital marketplace and broker platform purpose-built for the **TouchDesigner** creative coding, new media, and VJ community to claim and share premium `.tox` (component) and `.toe` (project network) files — 100% free.
 
 ---
 
@@ -31,13 +30,12 @@ flowchart TD
 
     subgraph Buyer Flow
         B[Buyer] -->|4. Browses catalog| Storefront[toxtoe Glassmorphism UI\npublic metadata only]
-        B -->|5. Initiates Checkout| Stripe[Stripe Checkout]
-        Stripe -->|6. Webhook verifies payment| Webhook[toxtoe Webhook Gateway]
-        Webhook -->|7. Creates verified record| Purchase[(Purchase: COMPLETED)]
-        B -->|8. Requests asset access| AuthGate{Backend Purchase\nVerification Gate}
+        B -->|5. Claims asset for free| Claim[Direct Free Claim]
+        Claim -->|6. Records COMPLETED purchase| Purchase[(Purchase: COMPLETED)]
+        B -->|7. Requests asset access| AuthGate{Backend Purchase\nVerification Gate}
         Purchase -.-> AuthGate
-        AuthGate -->|9. Authorized release| Deliver[Protected Delivery Link]
-        AuthGate -.->|Not purchased| Reject[403 Forbidden]
+        AuthGate -->|8. Authorized release| Deliver[Protected Delivery Link]
+        AuthGate -.->|Not claimed| Reject[403 Forbidden]
     end
 ```
 
@@ -61,7 +59,7 @@ flowchart TD
 | **Styling** | **Tailwind CSS v4** | Custom dark-mode visual-arts aesthetic featuring TouchDesigner node grid patterns and glassmorphism. |
 | **Database** | **Neon PostgreSQL** | Serverless Postgres featuring instant branching, compute autoscaling, and connection pooling. |
 | **ORM & Driver** | **Prisma 7** + `@prisma/adapter-neon` | Modern type-safe data modeling leveraging WebSocket pooled connections. |
-| **Payments** | **Stripe Checkout & Webhooks** | PCI-compliant payments with webhook idempotency. |
+| **Monetization** | **Free Claim** | 100% free exchange — claiming records a COMPLETED purchase with `amountPaid = 0`. |
 | **Authentication** | **NextAuth (Auth.js v5)** | Session handling with `@auth/prisma-adapter` integration. |
 
 ---
@@ -137,13 +135,6 @@ DATABASE_URL_UNPOOLED="postgresql://user:pass@ep-direct.region.aws.neon.tech/neo
 NEXTAUTH_SECRET="your-32-character-secret"
 AUTH_SECRET="your-32-character-secret"
 NEXTAUTH_URL="http://localhost:3000"
-
-# ==============================================================================
-# Stripe Payments
-# ==============================================================================
-STRIPE_SECRET_KEY="sk_test_..."
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
 
 # ==============================================================================
 # Application URL
