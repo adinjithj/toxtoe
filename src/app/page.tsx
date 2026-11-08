@@ -1,213 +1,344 @@
-import React from "react";
-import ProductCard, { ProductCardProps } from "@/components/ProductCard";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import ProductCard from "@/components/ProductCard";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 
-// Mock Products Array (stored with integer cents for prices matching PostgreSQL schema)
-const MOCK_PRODUCTS: ProductCardProps[] = [
-  {
-    id: "prod_1",
-    title: "Neon Glitch Shader",
-    price: 1800, // $18.00 USD
-    thumbnail_url:
-      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80",
-    fileType: "TOX",
-    category: "GLSL / Shaders",
-    creatorName: "LumaSync",
-  },
-  {
-    id: "prod_2",
-    title: "Audio Reactive Geometry",
-    price: 3200, // $32.00 USD
-    thumbnail_url:
-      "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
-    fileType: "TOE",
-    category: "Audio Reactive",
-    creatorName: "ResonantNodes",
-  },
-  {
-    id: "prod_3",
-    title: "Fluid Sim Particles",
-    price: 4500, // $45.00 USD
-    thumbnail_url:
-      "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=800&q=80",
-    fileType: "TOX",
-    category: "Simulation",
-    creatorName: "AetherVisuals",
-  },
-  {
-    id: "prod_4",
-    title: "VJ Dashboard UI",
-    price: 2900, // $29.00 USD
-    thumbnail_url:
-      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-    fileType: "BOTH",
-    category: "UI & Control",
-    creatorName: "NodeWired",
-  },
-];
+const FOCUS_CLASSES =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#10b981]";
+
+function NodeNetworkVisual() {
+  return (
+    <div className="relative" aria-hidden="true">
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0f1219] p-6">
+        <svg viewBox="0 0 360 280" fill="none" className="h-auto w-full">
+          {/* background wires */}
+          <path
+            d="M188 78 C236 78 236 96 284 96"
+            stroke="rgba(238,240,245,0.14)"
+            strokeWidth="1"
+          />
+          <path
+            d="M188 118 C236 118 236 152 284 152"
+            stroke="rgba(238,240,245,0.14)"
+            strokeWidth="1"
+          />
+          <path
+            d="M76 190 L136 190"
+            stroke="rgba(238,240,245,0.14)"
+            strokeWidth="1"
+          />
+
+          {/* focus wire (accent) */}
+          <path
+            d="M188 102 C200 120 208 130 236 104"
+            stroke="rgba(16,185,129,0.4)"
+            strokeWidth="1.2"
+          />
+          <path
+            d="M340 104 C300 140 260 170 188 210"
+            stroke="rgba(6,182,212,0.4)"
+            strokeWidth="1.2"
+          />
+
+          {/* node: TOP · fx (focus, emerald) */}
+          <rect
+            x="68"
+            y="70"
+            width="120"
+            height="64"
+            rx="10"
+            fill="#141823"
+            stroke="rgba(16,185,129,0.45)"
+            strokeDasharray="4 4"
+          />
+          <circle cx="68" cy="90" r="3" fill="#0b0d14" stroke="#7a8296" />
+          <circle cx="68" cy="114" r="3" fill="#0b0d14" stroke="#7a8296" />
+          <circle cx="188" cy="102" r="3" fill="#0b0d14" stroke="#10b981" />
+          <text
+            x="86"
+            y="95"
+            fontFamily="Geist Mono, monospace"
+            fontSize="10"
+            fill="#a3a9b8"
+          >
+            TOP · fx
+          </text>
+          <text
+            x="86"
+            y="112"
+            fontFamily="Geist Mono, monospace"
+            fontSize="9"
+            fill="#7a8296"
+          >
+            Glitch
+          </text>
+
+          {/* node: SOP · sdf (cyan) */}
+          <rect
+            x="236"
+            y="78"
+            width="104"
+            height="52"
+            rx="10"
+            fill="#141823"
+            stroke="rgba(255,255,255,0.08)"
+          />
+          <circle cx="236" cy="96" r="3" fill="#0b0d14" stroke="#7a8296" />
+          <circle cx="340" cy="104" r="3" fill="#0b0d14" stroke="#06b6d4" />
+          <text
+            x="254"
+            y="100"
+            fontFamily="Geist Mono, monospace"
+            fontSize="10"
+            fill="#a3a9b8"
+          >
+            SOP · sdf
+          </text>
+
+          {/* node: OUT · render */}
+          <rect
+            x="68"
+            y="200"
+            width="120"
+            height="52"
+            rx="10"
+            fill="#141823"
+            stroke="rgba(255,255,255,0.08)"
+          />
+          <circle cx="68" cy="220" r="3" fill="#0b0d14" stroke="#7a8296" />
+          <circle cx="188" cy="226" r="3" fill="#0b0d14" stroke="#7a8296" />
+          <text
+            x="86"
+            y="224"
+            fontFamily="Geist Mono, monospace"
+            fontSize="10"
+            fill="#a3a9b8"
+          >
+            Out · render
+          </text>
+
+          {/* status line */}
+          <circle cx="36" cy="36" r="3" fill="#10b981" />
+          <text
+            x="46"
+            y="39"
+            fontFamily="Geist Mono, monospace"
+            fontSize="10"
+            fill="#7a8296"
+          >
+            network · ready
+          </text>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+// Server component: streams live products from the database.
+// SECURITY: explicit `select` whitelist only — `delivery_url` is NEVER queried here.
+async function FeaturedProducts() {
+  // Opt into request-time rendering (Cache Components) for this DB read.
+  await connection();
+
+  // Collect the product IDs the authenticated user already owns so the
+  // catalog can badge them at a glance.
+  const session = await auth();
+  const ownedProductIds = new Set<string>();
+  if (session?.user?.id) {
+    const purchases = await prisma.purchase.findMany({
+      where: {
+        userId: session.user.id,
+        status: "COMPLETED",
+      },
+      select: { productId: true },
+    });
+    for (const purchase of purchases) {
+      ownedProductIds.add(purchase.productId);
+    }
+  }
+
+  const products = await prisma.product.findMany({
+    where: { isPublished: true },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      thumbnail_url: true,
+      fileType: true,
+    },
+  });
+
+  return (
+    <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {products.map((product) => (
+        <ProductCard
+          key={product.id}
+          id={product.id}
+          title={product.title}
+          price={product.price}
+          thumbnail_url={product.thumbnail_url}
+          fileType={product.fileType}
+          isOwned={ownedProductIds.has(product.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function FeaturedProductsFallback() {
+  return (
+    <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#11141c]"
+        >
+          <div className="aspect-[16/10] w-full bg-[#0f1219]" />
+          <div className="flex flex-1 flex-col gap-3 p-5">
+            <div className="h-3 w-24 rounded bg-[#1a1e28]" />
+            <div className="h-4 w-3/4 rounded bg-[#1a1e28]" />
+            <div className="mt-2 h-6 w-20 rounded bg-[#1a1e28]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function HomePage() {
   return (
-    <div className="relative min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col td-grid-bg">
-      {/* Top Header / Navigation */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-[#090a0f]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-base font-bold shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-              tt
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-mono text-lg font-bold tracking-tight text-zinc-100">
-                tox<span className="text-emerald-400">toe</span>
-              </span>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">
-                marketplace
-              </span>
-            </div>
-          </div>
+    <div className="relative flex min-h-screen flex-col bg-[#0b0d14] text-[#eef0f5] td-grid-bg">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#0b0d14]/85 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <a href="#" className="flex items-baseline gap-1.5">
+            <span className="font-mono text-[17px] font-medium tracking-tight text-[#eef0f5]">
+              tox<span className="text-[#10b981]">toe</span>
+            </span>
+            <span className="font-mono text-[11px] text-[#7a8296]">
+              marketplace
+            </span>
+          </a>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-400">
-            <a href="#explore" className="text-zinc-100 hover:text-emerald-400 transition-colors">
+          <nav className="hidden items-center gap-8 text-sm font-normal text-[#a3a9b8] md:flex">
+            <a href="#explore" className="text-[#eef0f5]">
               Explore
             </a>
-            <a href="#categories" className="hover:text-emerald-400 transition-colors">
-              Categories
-            </a>
-            <a href="#digital-broker" className="hover:text-emerald-400 transition-colors">
-              Sell Assets
+            <a
+              href="#sell"
+              className="transition-colors hover:text-[#eef0f5]"
+            >
+              Sell assets
             </a>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <a
+              href="/login"
+              className={`hidden px-3 py-2 text-sm text-[#a3a9b8] transition-colors hover:text-[#eef0f5] sm:inline-block ${FOCUS_CLASSES}`}
+            >
+              Sign in
+            </a>
             <button
               type="button"
-              className="hidden sm:inline-flex rounded-lg border border-zinc-800 bg-zinc-900/80 px-3.5 py-1.5 text-xs font-mono font-medium text-zinc-300 hover:border-zinc-700 hover:text-white transition-all"
+              className={`h-9 rounded-lg border border-white/[0.12] bg-[#1a1e28] px-4 text-[13px] font-medium text-[#a3a9b8] transition-colors hover:border-white/[0.24] hover:text-[#eef0f5] ${FOCUS_CLASSES}`}
             >
-              Sign In
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-mono font-semibold text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all"
-            >
-              + Sell .tox/.toe
+              Sell .tox/.toe
             </button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 pb-20 sm:pt-24 sm:pb-28">
-        {/* Glow backdrop effects */}
-        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-gradient-to-tr from-emerald-500/15 via-cyan-500/10 to-transparent blur-[120px] rounded-full" />
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        <div className="mx-auto grid max-w-7xl gap-12 px-4 pb-24 pt-20 sm:px-6 sm:pt-32 lg:grid-cols-[1fr_400px] lg:items-center lg:px-8 lg:pb-32">
+          <div>
+            <p className="font-mono text-xs text-[#7a8296]">
+              For the TouchDesigner community
+            </p>
+            <h1 className="mt-4 max-w-xl text-4xl font-medium leading-[1.05] tracking-tight text-[#eef0f5] sm:text-[56px]">
+              Buy and sell TouchDesigner assets
+            </h1>
+            <p className="mt-6 max-w-md text-base leading-relaxed text-[#a3a9b8]">
+              Curated .tox components and .toe project networks, crafted by
+              creative technologists and VJs.
+            </p>
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/80 px-3.5 py-1 text-xs font-mono text-zinc-400 mb-8 backdrop-blur-md">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Built for the TouchDesigner Community</span>
-            <span className="text-zinc-600">|</span>
-            <span className="text-emerald-400">.tox</span> &amp;{" "}
-            <span className="text-cyan-400">.toe</span>
+            <div className="mt-10 flex flex-wrap items-center gap-4">
+              <a
+                href="#explore"
+                className={`inline-flex h-11 items-center rounded-lg bg-[#eef0f5] px-6 text-sm font-medium text-[#0b0d14] transition-colors hover:bg-white ${FOCUS_CLASSES}`}
+              >
+                Browse catalog
+              </a>
+              <a
+                href="#sell"
+                className={`inline-flex h-11 items-center rounded-lg border border-white/[0.12] px-6 text-sm font-medium text-[#a3a9b8] transition-colors hover:border-white/[0.24] hover:text-[#eef0f5] ${FOCUS_CLASSES}`}
+              >
+                Creator program
+              </a>
+            </div>
           </div>
 
-          {/* Headline */}
-          <h1 className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight text-zinc-100 sm:text-6xl sm:leading-[1.15]">
-            The Premier Marketplace for{" "}
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
-              TouchDesigner
-            </span>{" "}
-            Assets
-          </h1>
-
-          {/* Subtitle */}
-          <p className="mx-auto mt-6 max-w-2xl text-base text-zinc-400 sm:text-lg sm:leading-relaxed">
-            Discover curated, performance-optimized <code className="font-mono text-emerald-400">.tox</code> components
-            and full <code className="font-mono text-cyan-400">.toe</code> project networks crafted by world-class
-            creative technologists and VJs.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <a
-              href="#explore"
-              className="rounded-lg bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all font-mono"
-            >
-              Browse Catalog ↓
-            </a>
-            <a
-              href="#digital-broker"
-              className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-6 py-2.5 text-sm font-medium text-zinc-300 hover:border-zinc-700 hover:text-white backdrop-blur-md transition-all font-mono"
-            >
-              Creator Program
-            </a>
-          </div>
+          <NodeNetworkVisual />
         </div>
       </section>
 
-      {/* Main Catalog & Grid Section */}
-      <main id="explore" className="relative flex-1 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-24 w-full">
-        {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/80 pb-5 mb-8 gap-4">
+      {/* Catalog */}
+      <main
+        id="explore"
+        className="mx-auto w-full max-w-7xl px-4 pb-28 sm:px-6 lg:px-8"
+      >
+        <div className="flex flex-col gap-6 border-b border-white/[0.08] pb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
-              <span>Featured Components &amp; Networks</span>
-              <span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs font-mono font-normal text-zinc-400">
-                {MOCK_PRODUCTS.length}
-              </span>
+            <p className="font-mono text-xs text-[#7a8296]">Catalog</p>
+            <h2 className="mt-2 text-xl font-medium text-[#eef0f5] sm:text-2xl">
+              Featured components & networks
             </h2>
-            <p className="text-xs text-zinc-500 font-mono mt-1">
-              Live generative tools, interactive shaders, and audio-reactive rigs
+            <p className="mt-2 text-sm text-[#a3a9b8]">
+              Shaders, generators, and audio-reactive rigs
             </p>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex flex-wrap gap-2 text-xs font-mono">
-            {["All", "GLSL / Shaders", "Audio Reactive", "Simulation", "UI & Control"].map(
-              (cat, idx) => (
-                <button
-                  key={cat}
-                  type="button"
-                  className={`rounded-lg px-3 py-1.5 transition-colors ${
-                    idx === 0
-                      ? "bg-zinc-800 text-emerald-400 border border-emerald-500/30"
-                      : "bg-zinc-900/50 text-zinc-400 border border-zinc-800/80 hover:text-zinc-200 hover:border-zinc-700"
-                  }`}
-                >
-                  {cat}
-                </button>
-              )
-            )}
+          <div className="flex flex-wrap gap-2">
+            {[
+              "All",
+              "GLSL / Shaders",
+              "Audio Reactive",
+              "Simulation",
+              "UI & Control",
+            ].map((cat, idx) => (
+              <button
+                key={cat}
+                type="button"
+                className={`h-8 rounded-lg border px-3 font-mono text-xs transition-colors ${
+                  idx === 0
+                    ? "border-white/[0.12] bg-[#1a1e28] text-[#eef0f5]"
+                    : "border-transparent text-[#7a8296] hover:text-[#a3a9b8]"
+                } ${FOCUS_CLASSES}`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Responsive Product Grid */}
-        {/* 1 column on mobile, 2 on tablet, 3 on laptop, 4 on desktop */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {MOCK_PRODUCTS.map((product) => (
-            <ProductCard
-              key={product.id}
-              id={product.id}
-              title={product.title}
-              price={product.price}
-              thumbnail_url={product.thumbnail_url}
-              fileType={product.fileType}
-              category={product.category}
-              creatorName={product.creatorName}
-            />
-          ))}
-        </div>
+        <Suspense fallback={<FeaturedProductsFallback />}>
+          <FeaturedProducts />
+        </Suspense>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-900 bg-zinc-950/80 py-8 text-center text-xs font-mono text-zinc-600">
-        <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            toxtoe © 2026 • The Digital Broker for TouchDesigner Creators
-          </div>
-          <div className="flex gap-4 text-zinc-500">
-            <span>Powered by Next.js &amp; Neon Postgres</span>
-            <span>•</span>
-            <span>Stripe Payments</span>
-          </div>
+      <footer className="mt-auto border-t border-white/[0.08]">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <p className="font-mono text-xs text-[#7a8296]">
+            toxtoe © 2026 · Digital broker for TouchDesigner creators
+          </p>
+          <p className="font-mono text-xs text-[#7a8296]">
+            Next.js · Neon Postgres · Stripe
+          </p>
         </div>
       </footer>
     </div>
